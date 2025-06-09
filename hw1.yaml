@@ -1,0 +1,5 @@
+train: /datashare/HW1/labeled_image_data/images/train
+val: /datashare/HW1/labeled_image_data/images/val
+
+nc: 3  # number of classes
+names: ['Empty', 'Tweezers', 'Needle_driver']
