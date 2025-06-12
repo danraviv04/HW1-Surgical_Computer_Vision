@@ -13,6 +13,16 @@ from tqdm import tqdm
 
 
 def train_yolo_model(model, data_path="hw1.yaml", epochs=50, batch_size=16, img_size=640, name="initial_train"):
+    """
+    Train a YOLO model with specified parameters.
+    :param model: the YOLO model to train
+    :param data_path: Path to the dataset configuration file (YAML).
+    :param epochs: number of training epochs
+    :param batch_size: the batch size for training
+    :param img_size: image size for training (default 640)
+    :param name: name for the training run, used for saving results
+    :return: the trained YOLO model
+    """
     print('cuda' if torch.cuda.is_available() else 'cpu')
     model.train(
         data=data_path,
@@ -35,41 +45,6 @@ def train_yolo_model(model, data_path="hw1.yaml", epochs=50, batch_size=16, img_
         workers=4,
     )
     return model
-
-
-def plot_yolo_training_curves(results_dir='runs/detect/train'):
-    results_path = os.path.join(results_dir, 'results.csv')
-    if not os.path.exists(results_path):
-        print(f"results.csv not found in {results_dir}")
-        return
-
-    df = pd.read_csv(results_path)
-    epochs = df.index + 1
-
-    # --- Loss plot ---
-    plt.figure(figsize=(10, 5))
-    plt.plot(epochs, df['train/box_loss'], label='Train Box Loss')
-    plt.plot(epochs, df['val/box_loss'], label='Val Box Loss')
-    plt.plot(epochs, df['train/cls_loss'], label='Train Cls Loss')
-    plt.plot(epochs, df['val/cls_loss'], label='Val Cls Loss')
-    plt.title('Training and Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
-    # --- mAP plot ---
-    plt.figure(figsize=(10, 5))
-    plt.plot(epochs, df['metrics/mAP50(B)'], label='mAP@50')
-    plt.plot(epochs, df['metrics/mAP50-95(B)'], label='mAP@50-95')
-    plt.title('Validation mAP Metrics')
-    plt.xlabel('Epoch')
-    plt.ylabel('mAP')
-    plt.legend()
-    plt.grid(True)
-    plt.show()
-
 
 def extract_pseudo_labels_from_video(original_label_dir="runs/pseudo_labels",
                                      output_dir="runs/pseudo_labels_extracted"):
@@ -270,6 +245,14 @@ def create_combined_training_dataset(
 
 
 def create_data_yaml(img_dir, val_dir, class_names, output_path):
+    """
+    Creates a data.yaml file for YOLO training.
+    :param img_dir: Path to the training images directory.
+    :param val_dir: Path to the validation images directory.
+    :param class_names: List of class names for the dataset.
+    :param output_path: Path to save the data.yaml file.
+    :return: Path to the created data.yaml file.
+    """
     with open(output_path, "w") as f:
         f.write(f"train: {img_dir}\n")
         f.write(f"val: {val_dir}\n\n")
@@ -281,6 +264,14 @@ def create_data_yaml(img_dir, val_dir, class_names, output_path):
 
 def predict_and_export_video_frames(model_use, pseudo_labels_dir="runs/pseudo_labels",
                                     video_dir="/datashare/HW1/id_video_data"):
+    """
+    Predicts on video files and exports frames with pseudo labels.
+    :param model_use: The YOLO model to use for predictions.
+    :param pseudo_labels_dir: Directory to save the pseudo labels and frames.
+    :param video_dir: Directory containing video files to process.
+    :return: None
+    """
+
     os.makedirs(pseudo_labels_dir, exist_ok=True)
 
     video_files = [f for f in os.listdir(video_dir) if f.endswith(".mp4")]
@@ -397,7 +388,7 @@ def combine_frames_to_video(frames_dir="runs/id_video_eval/id_video_preds",
     print("All videos created.")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__": # Main entry point for the script
     if not os.path.exists("/home/student/HW1/yolo11n_refined.pt"):
         print("------Starting YOLO11 training pipeline...------")
         if not os.path.exists("hw1.yaml"):
@@ -414,64 +405,8 @@ if __name__ == "__main__":
         trained_model.save("yolo11n_trained.pt")
         print("Model saved as 'yolo11n_trained.pt'!")
 
-        # # --- Step 1: Predict on validation set ---
-        # print("Step 1: Predicting on validation set...")
-        # if not os.path.exists("runs/pseudo_labels") or len(os.listdir("runs/pseudo_labels")) == 0:
-        #     predict_and_export_video_frames(trained_model, pseudo_labels_dir="runs/pseudo_labels",
-        #                                     video_dir="/datashare/HW1/id_video_data")  # "/home/student/HW1/temp"
-        # else:
-        #     print("Skipping Step 1: Pseudo labels already exist in 'runs/pseudo_labels'")
-        #
-        # # --- Step 2: Filter by confidence threshold ---
-        # print("Step 2: Filtering pseudo labels by confidence threshold...")
-        # if not os.path.exists("runs/pseudo_labels_filtered") or len(os.listdir("runs/pseudo_labels_filtered")) == 0:
-        #     filter_pseudo_labels(
-        #         input_dir="runs/pseudo_labels",
-        #         output_dir="runs/pseudo_labels_filtered",
-        #         conf_thresh=0.85
-        #     )
-        # else:
-        #     print("Skipping Step 2: Pseudo labels already filtered in 'runs/pseudo_labels_filtered'")
-        #
-        # # --- Step 3: Create combined training dataset ---
-        # print("Step 3: Creating combined training dataset...")
-        # if not os.path.exists("refined_train/step1/images/train") or len(
-        #         os.listdir("refined_train/step1/images/train")) == 0:
-        #     img_dir, lbl_dir = create_combined_training_dataset(
-        #         orig_train_img_dir="/datashare/HW1/labeled_image_data/images/train",
-        #         orig_train_lbl_dir="/datashare/HW1/labeled_image_data/labels/train",
-        #         pseudo_root_dir="runs/pseudo_labels_filtered",
-        #         step=1
-        #     )
-        # else:
-        #     img_dir, lbl_dir = "refined_train/step1/images/train", "refined_train/step1/labels/train"
-        #     print("Skipping Step 3: Combined training dataset already exists in 'refined_train/step1'")
-        #
-        # # --- Step 3.5: Cleanup intermediate pseudo label directories ---
-        # print("Cleaning up intermediate pseudo-label directories to free up space...")
-        # for folder in ["runs/pseudo_labels", "runs/pseudo_labels_extracted", "runs/pseudo_labels_filtered"]:
-        #     if os.path.exists(folder):
-        #         try:
-        #             shutil.rmtree(folder)
-        #             print(f"Deleted: {folder}")
-        #         except Exception as e:
-        #             print(f"Failed to delete {folder}: {e}")
-        # print("Cleanup done!")
-
-        # # --- Step 4: Create data.yaml for the new training set ---
-        # print("Step 4: Creating data.yaml for the new training set...")
-        # data_yaml_path = create_data_yaml(
-        #     img_dir=os.path.join("/home/student/HW1", img_dir),
-        #     val_dir="/datashare/HW1/labeled_image_data/images/val",
-        #     class_names=["Empty", "Tweezers", "Needle_driver"],
-        #     output_path="hw1_refined.yaml"
-        # )
-
         # --- Step 5: Train the refined model ---
         print("Steps 1-5: Training the refined model...")
-        # print(data_yaml_path)
-        # refined_model = train_yolo_model(trained_model, data_path=data_yaml_path, epochs=50, name="refined_train")
-        # refined_model.save("yolo11n_refined.pt")
         model = trained_model
         for step in range(5):
             print(f"\n=== Refinement Iteration {step + 1} ===")
@@ -555,68 +490,8 @@ if __name__ == "__main__":
     # ------------ Part 4 ------------
 
     if not os.path.exists("/home/student/HW1/yolo11n_ood_refined.pt"):
-        # if not os.path.exists("runs/pseudo_labels_ood") or len(
-        #         os.listdir("runs/pseudo_labels_ood")) == 0:
-        #     # --- Step 7: Generate Pseudo Labels for OOD ---
-        #     print("Step 7: Generating Pseudo Labels for OOD Videos...")
-        #     predict_and_export_video_frames(refined_model, pseudo_labels_dir="runs/pseudo_labels_ood",
-        #                                     video_dir="/datashare/HW1/ood_video_data")
-        # else:
-        #     print("Skipping Step 7: Predictions on OOD videos already exist in 'runs/ood_video_eval/ood_video_preds'")
-        #
-        # if not os.path.exists("runs/pseudo_labels_ood_filtered") or len(
-        #         os.listdir("runs/pseudo_labels_ood_filtered")) == 0:
-        #     # --- Step 8: Filter OOD Pseudo Labels ---
-        #     print("Step 8: Filtering OOD Pseudo Labels...")
-        #     filter_pseudo_labels(
-        #         input_dir="runs/pseudo_labels_ood",
-        #         output_dir="runs/pseudo_labels_ood_filtered",
-        #         conf_thresh=0.85
-        #     )
-        #
-        # else:
-        #     print("Skipping Step 8: OOD Pseudo labels already filtered in 'runs/pseudo_labels_ood_filtered'")
-        #
-        # if not os.path.exists("refined_train/step2/images/train") or len(
-        #         os.listdir("refined_train/step2/images/train")) == 0:
-        #     # --- Step 9: Create Combined OOD Training Dataset ---
-        #     print("Step 9: Creating Combined OOD Training Dataset...")
-        #     img_dir, lbl_dir = create_combined_training_dataset(
-        #         orig_train_img_dir="/datashare/HW1/labeled_image_data/images/train",
-        #         orig_train_lbl_dir="/datashare/HW1/labeled_image_data/labels/train",
-        #         pseudo_root_dir="runs/pseudo_labels_ood_filtered",
-        #         step=2
-        #     )
-        # else:
-        #     img_dir, lbl_dir = "refined_train/step2/images/train", "refined_train/step2/labels/train"
-        #     print("Skipping Step 9: Combined OOD training dataset already exists in 'refined_train/step2'")
-        #
-        # # --- Step 9.5: Cleanup intermediate OOD pseudo label directories ---
-        # print("Cleaning up intermediate OOD pseudo-label directories to free up space...")
-        # for folder in ["runs/pseudo_labels_ood", "runs/pseudo_labels_ood_filtered"]:
-        #     if os.path.exists(folder):
-        #         try:
-        #             shutil.rmtree(folder)
-        #             print(f"Deleted: {folder}")
-        #         except Exception as e:
-        #             print(f"Failed to delete {folder}: {e}")
-        # print("Cleanup done!")
-        #
-        # # --- Step 10: Create OOD data.yaml ---
-        # print("Step 10: Creating OOD data.yaml for the new training set...")
-        # ood_data_yaml_path = create_data_yaml(
-        #     img_dir=os.path.join("/home/student/HW1", img_dir),
-        #     val_dir="/datashare/HW1/labeled_image_data/images/val",
-        #     class_names=["Empty", "Tweezers", "Needle_driver"],
-        #     output_path="hw1_ood_refined.yaml"
-        # )
-
         # --- Step 11: Train the OOD refined model ---
         print("Steps 7-11: Training the OOD refined model...")
-        # ood_data_yaml_path = "/home/student/HW1/hw1_ood_refined.yaml"
-        # ood_refined_model = train_yolo_model(refined_model, data_path=ood_data_yaml_path, epochs=50,
-        #                                      name="ood_refined_train")
-        # ood_refined_model.save("yolo11n_ood_refined.pt")
         model = refined_model  # start from refined ID model
         for step in range(5):
             print(f"\n=== OOD Refinement Iteration {step + 1} ===")
