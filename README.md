@@ -4,14 +4,12 @@ This HW implements an object detection system for surgical tools in leg suture s
 <details>
 <summary><strong>Project Structure</strong></summary>
 .
+
+├── models / # Including The models' weights in different stages
   
 ├── predict.py # The main code of the HW trains the ID and OOD models + Predicts the tools on the Videos.
 
 ├── hw1.yaml # Dataset config for initial training
-
-#├── refined_train/
-
-#├── runs/
 
 ├── requirements.txt # Python environment dependencies
 
